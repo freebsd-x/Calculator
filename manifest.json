@@ -1,0 +1,11 @@
+{
+  "name": "Calculator",
+  "version": "1.0.0",
+  "identifier": "com.freebsdx.calculator",
+  "executable": "bin/calculator",
+  "icon": "Resources/icon.svg",
+  "permissions": [
+    "com.freebsdx.permission.UI"
+  ],
+  "mime_types": []
+}
