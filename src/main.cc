@@ -270,14 +270,14 @@ int main(int /*argc*/, char** /*argv*/) {
 
         auto hdr = std::make_shared<TextWidget>("History", 12.0f);
         hdr->setColor(Color{0.6f, 0.6f, 0.6f, 1.0f});
-        history_col->addChild(std::make_shared<ContainerWidget>(6.0f, 0.0f, hdr));
+        history_col->addChild([&]{ auto c = std::make_shared<FlexColumn>(std::vector<std::shared_ptr<Widget>>{hdr}); c->setPadding(6.0f); return c; }());
         history_col->addChild(std::make_shared<DividerWidget>());
 
         if (history.empty()) {
             auto empty = std::make_shared<TextWidget>("No history", 11.0f);
             empty->setColor(Color{0.4f, 0.4f, 0.4f, 1.0f});
             history_col->addChild(
-                std::make_shared<ContainerWidget>(6.0f, 0.0f, empty));
+                [&]{ auto c = std::make_shared<FlexColumn>(std::vector<std::shared_ptr<Widget>>{empty}); c->setPadding(6.0f); return c; }());
             return;
         }
         // Show newest first
@@ -328,8 +328,7 @@ int main(int /*argc*/, char** /*argv*/) {
             btn->setBackgroundColor(bg);
 
             btn->setPadding(0.0f);
-            btn->setFlexGrow(1.0f);
-            btn->setFixedSize(0.0f, 50.0f);
+            btn->setFlexGrow(1.0f);     // share the row's width; the row stretches it to its height
             return btn;
         };
 
@@ -340,10 +339,13 @@ int main(int /*argc*/, char** /*argv*/) {
 
         auto row = [](std::vector<std::shared_ptr<Widget>> btns,
                       float gap = 4.0f) {
+            // Rows share the keypad's height (min 40 px) and stretch their
+            // buttons to it, so the keypad fills the window instead of a
+            // fixed 50 px-per-row block in the corner.
             auto r = std::make_shared<FlexRow>(std::move(btns));
             r->setGap(gap);
-            r->setFlexGrow(0.0f);
-            r->setFixedSize(0.0f, 50.0f);
+            r->setFlexGrow(1.0f);
+            r->setCrossAxisAlignment(CrossAxisAlignment::Stretch);
             return r;
         };
 
@@ -469,7 +471,6 @@ int main(int /*argc*/, char** /*argv*/) {
         zero_btn->setBackgroundColor(Color{0.20f,0.20f,0.22f,1.0f});
 
         zero_btn->setFlexGrow(2.0f);  // wider zero
-        zero_btn->setFixedSize(0.0f, 50.0f);
 
         btn_grid_col->addChild(row({
             zero_btn,
@@ -487,11 +488,11 @@ int main(int /*argc*/, char** /*argv*/) {
 
     // ── Expression input ──────────────────────────────────────────────────────
     expr_input = std::make_shared<TextInputWidget>("");
-    expr_input->setFlexGrow(1.0f);
+    expr_input->setPlaceholder("Type an expression, or use the keys");
     expr_input->setOnChanged([](const std::string&) { do_evaluate(); });
 
     // ── Result display ────────────────────────────────────────────────────────
-    result_lbl = std::make_shared<TextWidget>("", 28.0f);
+    result_lbl = std::make_shared<TextWidget>("0", 28.0f);
     result_lbl->setColor(Color{0.88f, 0.95f, 0.88f, 1.0f});
 
     // ── Display area ──────────────────────────────────────────────────────────
@@ -520,8 +521,9 @@ int main(int /*argc*/, char** /*argv*/) {
     auto display_area = std::make_shared<FlexColumn>(
         std::vector<std::shared_ptr<Widget>>{
             display_top,
-            std::make_shared<ContainerWidget>(6.0f, 0.0f, expr_input),
-            std::make_shared<ContainerWidget>(4.0f, 12.0f, result_lbl),
+            [&]{ auto c = std::make_shared<FlexColumn>(std::vector<std::shared_ptr<Widget>>{expr_input}); c->setPadding(6.0f);
+                  c->setCrossAxisAlignment(CrossAxisAlignment::Stretch); return c; }(),   // the field spans the width
+            [&]{ auto c = std::make_shared<FlexColumn>(std::vector<std::shared_ptr<Widget>>{result_lbl}); c->setPadding(8.0f); return c; }(),
             std::make_shared<DividerWidget>(1.0f),
         });
     display_area->setBackgroundColor(Color{0.07f, 0.08f, 0.07f, 1.0f});
@@ -531,7 +533,8 @@ int main(int /*argc*/, char** /*argv*/) {
     btn_grid_col = std::make_shared<FlexColumn>(
         std::vector<std::shared_ptr<Widget>>{});
     btn_grid_col->setPadding(8.0f);
-    btn_grid_col->setGap(0.0f);
+    btn_grid_col->setGap(4.0f);
+    btn_grid_col->setFlexGrow(1.0f);   // the keypad takes the rest of the panel
     btn_grid_col->setBackgroundColor(Color{0.09f, 0.09f, 0.11f, 1.0f});
 
     // ── History sidebar ───────────────────────────────────────────────────────
@@ -543,8 +546,7 @@ int main(int /*argc*/, char** /*argv*/) {
     history_col->setBackgroundColor(Color{0.10f, 0.10f, 0.13f, 1.0f});
 
     auto history_scroll = std::make_shared<ScrollViewWidget>(history_col);
-    history_scroll->setFixedSize(180.0f, 0.0f);
-    history_scroll->setFlexGrow(1.0f);
+    history_scroll->setFixedSize(180.0f, 0.0f);   // a fixed-width sidebar (no flex-grow: it competed with the keypad for width)
 
     // ── Calculator panel (display + buttons) ──────────────────────────────────
     auto calc_panel = std::make_shared<FlexColumn>(
@@ -554,6 +556,7 @@ int main(int /*argc*/, char** /*argv*/) {
         });
     calc_panel->setFlexGrow(1.0f);
     calc_panel->setGap(0.0f);
+    calc_panel->setCrossAxisAlignment(CrossAxisAlignment::Stretch);
 
     // ── Root ──────────────────────────────────────────────────────────────────
     root_body = std::make_shared<FlexRow>(std::vector<std::shared_ptr<Widget>>{
@@ -563,6 +566,7 @@ int main(int /*argc*/, char** /*argv*/) {
     });
     root_body->setGap(0.0f);
     root_body->setFlexGrow(1.0f);
+    root_body->setCrossAxisAlignment(CrossAxisAlignment::Stretch);   // panels fill the height
 
     auto root = std::make_shared<FlexColumn>(std::vector<std::shared_ptr<Widget>>{
         root_body,
